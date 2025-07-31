@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pandoo App - Unified Financial Projection</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4F46E5; /* Indigo */
+            --secondary-color: #6B7280; /* Gray */
+            --success-color: #10B981; /* Emerald */
+            --danger-color: #EF4444;  /* Red */
+            --warning-color: #F59E0B; /* Amber */
+            --bg-color: #F9FAFB; /* Light Gray */
+            --font-color: #1F2937;
+            --card-bg: #FFFFFF;
+            --border-color: #E5E7EB;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--font-color);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: auto; padding: 20px; }
+        header { text-align: center; margin-bottom: 40px; }
+        header h1 { color: var(--primary-color); margin-bottom: 10px; }
+        .controls { display: flex; justify-content: space-around; align-items: center; background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; flex-wrap: wrap; }
+        .input-group { display: flex; flex-direction: column; margin: 10px; }
+        .input-group label { font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: var(--secondary-color); }
+        .input-group input, .input-group select { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; width: 250px; }
+        .summary-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .summary-box { background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 4px solid var(--primary-color); transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .summary-box:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+        .summary-box h3 { margin: 0 0 10px 0; font-size: 0.9em; font-weight: 600; color: #555; height: 3em; }
+        .summary-box .value { font-size: 2em; font-weight: 700; }
+        .assumptions-container { display: block; background-color: #F3F4F6; border-left: 5px solid var(--secondary-color); padding: 15px 20px; border-radius: 0 8px 8px 0; margin-bottom: 40px; }
+        .assumptions-container h3 { margin-top: 0; color: var(--secondary-color); }
+        .assumptions-container ul { padding-left: 20px; margin-bottom: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 40px;}
+        .assumptions-container li { margin-bottom: 10px; line-height: 1.5; }
+        .chart-wrapper { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 40px; height: 450px; }
+        .secondary-charts-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+        .table-container { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow-x: auto; }
+        .table-container h2 { text-align: center; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        th { background-color: var(--primary-color); color: white; font-weight: 600; }
+        tbody tr:nth-child(even) { background-color: #F9FAFB; }
+        td.profit { color: var(--success-color); font-weight: 500; }
+        td.loss { color: var(--danger-color); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Pandoo App - Unified Financial Projection</h1>
+            <p>A deterministic model showing our path to an 18-month breakeven and subsequent profitable growth.</p>
+        </header>
+
+        <div class="assumptions-container">
+            <h3>Core Assumptions</h3>
+            <ul>
+                <li><b>Upfront Investment:</b> $31,250 (37.5 Lacs BDT).</li>
+                <li><b>Fixed Costs (Y1-Y2):</b> $4,917/month.</li>
+                <li><b>Fixed Costs (Y3+):</b> Declines by 10% annually.</li>
+                <li><b>Variable Cost (CAC):</b> Target of $18 per new user.</li>
+                <li><b>Subscription Mix:</b> 50% Monthly, 10% Half-Yearly, 40% Yearly.</li>
+                <li><b>Monthly Subs:</b> Avg. 3-month LTV ($30), with a 10% conversion to a yearly plan.</li>
+                <li><b>Renewal Rate:</b> 25% of annual subs renew.</li>
+                <li><b>Breakeven Target:</b> Fixed at 18 Months by capturing 2.11% of SOM.</li>
+            </ul>
+        </div>
+
+        <div class="controls">
+            <div class="input-group">
+                <label for="somNumber">Total Serviceable Obtainable Market (SOM)</label>
+                <input type="number" id="somNumber" value="228000">
+            </div>
+            <div class="input-group">
+                <label for="projectionDuration">Total Projection Duration</label>
+                <select id="projectionDuration">
+                    <option value="12">1 Year</option>
+                    <option value="24" selected>2 Years</option>
+                    <option value="36">3 Years</option>
+                    <option value="48">4 Years</option>
+                    <option value="60">5 Years</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="summary-container">
+             <div class="summary-box"><h3>Required Market Share (to break even)</h3><span class="value" style="color:var(--warning-color)">2.11%</span></div>
+             <div class="summary-box"><h3>Breakeven Point</h3><span class="value" id="breakevenMonthValue">...</span></div>
+             <div class="summary-box"><h3>Users to Breakeven</h3><span class="value" id="totalUsersToBreakevenValue">...</span></div>
+             <div class="summary-box"><h3>Profit at End of Term</h3><span class="value" id="totalProfitLossValue">...</span></div>
+             <div class="summary-box"><h3>Total Market Share by End of Term</h3><span class="value" id="totalMarketShareValue">...</span></div>
+             <div class="summary-box"><h3>Total Revenue by End of Term</h3><span class="value" id="totalRevenueValue">...</span></div>
+             <div class="summary-box"><h3>Total Users by End of Term</h3><span class="value" id="totalUsersValue">...</span></div>
+        </div>
+
+        <div class="chart-wrapper">
+            <h3>Breakeven Analysis: Cumulative Revenue vs. Cumulative Costs</h3>
+            <canvas id="breakevenChart"></canvas>
+        </div>
+
+        <div class="secondary-charts-container">
+            <div class="chart-wrapper" style="height: 300px;"><h3>New Paid Users Over Time</h3><canvas id="usersChart"></canvas></div>
+            <div class="chart-wrapper" style="height: 300px;"><h3>Cumulative Revenue Over Time</h3><canvas id="revenueChart"></canvas></div>
+        </div>
+
+        <div class="table-container">
+             <h2>Monthly Projection Data</h2>
+            <table>
+                <thead>
+                    <tr><th>Month</th><th>New Users</th><th>Monthly Revenue</th><th>Monthly Costs</th><th>Monthly P/L</th><th>Cumulative P/L</th></tr>
+                </thead>
+                <tbody id="projectionTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- DOM ELEMENTS AND CONFIG ---
+        const somNumberInput = document.getElementById('somNumber');
+        const durationSelect = document.getElementById('projectionDuration');
+        const tableBody = document.getElementById('projectionTableBody');
+        const breakevenChartCanvas = document.getElementById('breakevenChart');
+        const usersChartCanvas = document.getElementById('usersChart');
+        const revenueChartCanvas = document.getElementById('revenueChart');
+        let breakevenChartInstance, usersChartInstance, revenueChartInstance;
+
+        const CONFIG = {
+            assumptions: {
+                revenue: {
+                    subscriptionMix: { monthly: 0.50, halfYearly: 0.10, yearly: 0.40 },
+                    values: { monthly: 30, halfYearly: 48, yearly: 60 },
+                    renewal: { rate: 0.25, avgValue: 57.6 },
+                    monthlyToYearlyConversion: 0.10
+                },
+                costs: {
+                    upfront: 31250,
+                    fixedMonthlyY1_2: 4917,
+                    annualDeclineRate: 0.10,
+                    cac: 18
+                },
+                marketShareTargets: {
+                    24: 0.0211, 36: 0.0315, 48: 0.0450, 60: 0.0600
+                },
+                growthPatterns: {
+                    24: [1, 1, 2, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 11, 10, 9, 8, 7, 6, 6, 5, 5, 4, 4],
+                }
+            }
+        };
+
+        // --- ATTACH EVENT LISTENERS ---
+        somNumberInput.addEventListener('change', runAnalysis);
+        durationSelect.addEventListener('change', runAnalysis);
+
+        // --- CORE SIMULATION ENGINE ---
+        function getNormalisedGrowthPattern(pattern) {
+            const sum = pattern.reduce((a, b) => a + b, 0);
+            return (sum === 0) ? pattern : pattern.map(v => v / sum);
+        }
+
+        function generateProjection(projectionDuration) {
+            const somNumber = parseFloat(somNumberInput.value) || 0;
+            const data = [];
+            let cumulativeCosts = CONFIG.assumptions.costs.upfront;
+            let cumulativeRevenue = 0;
+            const yearlyYearlySubAcquisition = {};
+            const monthlySubsForConversion = new Array(projectionDuration).fill(0);
+            const monthlyNewUsers = new Array(projectionDuration).fill(0);
+            
+            const usersForY2 = somNumber * CONFIG.assumptions.marketShareTargets[24];
+            const growthPattern24 = getNormalisedGrowthPattern(CONFIG.growthPatterns[24]);
+
+            for (let month = 1; month <= projectionDuration; month++) {
+                let newUsersThisMonth = 0;
+                if (month <= 24) {
+                    newUsersThisMonth = Math.round(usersForY2 * growthPattern24[month - 1]);
+                } else {
+                    const currentYear = Math.floor((month - 1) / 12) + 1;
+                    const targetYearMonths = currentYear * 12;
+                    const prevTargetYearMonths = (currentYear - 1) * 12;
+
+                    const targetShare = CONFIG.assumptions.marketShareTargets[targetYearMonths];
+                    const prevTargetShare = CONFIG.assumptions.marketShareTargets[prevTargetYearMonths];
+                    
+                    if (targetShare && prevTargetShare) {
+                        const additionalShareThisYear = targetShare - prevTargetShare;
+                        const additionalUsersThisYear = somNumber * additionalShareThisYear;
+                        newUsersThisMonth = Math.round(additionalUsersThisYear / 12);
+                    } else {
+                        // Fallback for years beyond defined targets, maintain last known growth rate
+                        newUsersThisMonth = monthlyNewUsers[month - 13] || 0;
+                    }
+                }
+                monthlyNewUsers[month - 1] = newUsersThisMonth;
+
+                const currentYearForSubs = Math.ceil(month / 12);
+                const newYearlySubs = Math.round(newUsersThisMonth * CONFIG.assumptions.revenue.subscriptionMix.yearly);
+                if (!yearlyYearlySubAcquisition[currentYearForSubs]) yearlyYearlySubAcquisition[currentYearForSubs] = 0;
+                yearlyYearlySubAcquisition[currentYearForSubs] += newYearlySubs;
+                
+                const newMonthlySubs = Math.round(newUsersThisMonth * CONFIG.assumptions.revenue.subscriptionMix.monthly);
+                const newHalfYearlySubs = Math.round(newUsersThisMonth * CONFIG.assumptions.revenue.subscriptionMix.halfYearly);
+                monthlySubsForConversion[month - 1] = newMonthlySubs;
+
+                const revenueFromNewUsers = (newMonthlySubs * CONFIG.assumptions.revenue.values.monthly) + (newHalfYearlySubs * CONFIG.assumptions.revenue.values.halfYearly) + (newYearlySubs * CONFIG.assumptions.revenue.values.yearly);
+                
+                let renewalRevenue = 0;
+                if (month > 12 && (month - 1) % 12 === 0) {
+                    renewalRevenue = (yearlyYearlySubAcquisition[currentYearForSubs - 1] || 0) * CONFIG.assumptions.revenue.renewal.rate * CONFIG.assumptions.revenue.renewal.avgValue;
+                }
+                
+                let conversionRevenue = 0;
+                if (month > 3) {
+                    conversionRevenue = (monthlySubsForConversion[month - 4] || 0) * CONFIG.assumptions.revenue.monthlyToYearlyConversion * CONFIG.assumptions.revenue.values.yearly;
+                }
+
+                const totalMonthlyRevenue = revenueFromNewUsers + renewalRevenue + conversionRevenue;
+                cumulativeRevenue += totalMonthlyRevenue;
+                
+                let fixedCostThisMonth = CONFIG.assumptions.costs.fixedMonthlyY1_2;
+                if (month > 24) {
+                    const yearsPastY2 = Math.floor((month - 25) / 12) + 1;
+                    fixedCostThisMonth *= Math.pow(1 - CONFIG.assumptions.costs.annualDeclineRate, yearsPastY2);
+                }
+                const variableCostThisMonth = newUsersThisMonth * CONFIG.assumptions.costs.cac;
+                const totalMonthlyCosts = fixedCostThisMonth + variableCostThisMonth;
+                cumulativeCosts += totalMonthlyCosts;
+                
+                data.push({
+                    month, newUsersThisMonth, totalMonthlyRevenue, totalMonthlyCosts, 
+                    cumulativeRevenue, cumulativeCosts, cumulativeProfitLoss: cumulativeRevenue - cumulativeCosts
+                });
+            }
+            return data;
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderAll(data) {
+            renderSummary(data);
+            renderBreakevenChart(data);
+            renderSecondaryCharts(data);
+            renderTable(data);
+        }
+
+        function renderTable(data) {
+            tableBody.innerHTML = '';
+            const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+            data.forEach(d => {
+                const row = document.createElement('tr');
+                const pnlClass = d.cumulativeProfitLoss >= 0 ? 'profit' : 'loss';
+                row.innerHTML = `<td>${d.month}</td><td>${d.newUsersThisMonth.toLocaleString()}</td><td>${formatter.format(d.totalMonthlyRevenue)}</td><td>${formatter.format(d.totalMonthlyCosts)}</td><td class="${pnlClass.replace('cumulative','')}">${formatter.format(d.monthlyProfitLoss)}</td><td class="${pnlClass}">${formatter.format(d.cumulativeProfitLoss)}</td>`;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        function renderSummary(data) {
+            const somNumber = parseFloat(somNumberInput.value) || 0;
+            const projectionDuration = parseInt(durationSelect.value);
+            const totalUsers = data.reduce((s, d) => s + d.newUsersThisMonth, 0);
+            const finalMarketShare = (totalUsers / somNumber) * 100;
+
+            const breakevenDataPoint = data.find(d => d.cumulativeProfitLoss >= 0);
+            const breakevenMonth = breakevenDataPoint ? `~ Month ${breakevenDataPoint.month}` : 'Not Possible';
+            const usersAtBreakeven = breakevenDataPoint ? data.slice(0, data.indexOf(breakevenDataPoint) + 1).reduce((s, d) => s + d.newUsersThisMonth, 0) : 0;
+            
+            const finalProfitLoss = data[data.length - 1].cumulativeProfitLoss;
+            const totalRevenue = data[data.length - 1].cumulativeRevenue;
+            const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+            document.getElementById('breakevenMonthValue').textContent = breakevenMonth;
+            document.getElementById('totalUsersToBreakevenValue').textContent = usersAtBreakeven.toLocaleString();
+            document.getElementById('totalMarketShareValue').textContent = `${finalMarketShare.toFixed(2)}%`;
+            document.getElementById('totalRevenueValue').textContent = formatter.format(totalRevenue);
+            document.getElementById('totalUsersValue').textContent = totalUsers.toLocaleString();
+            
+            const profitEl = document.getElementById('totalProfitLossValue');
+            profitEl.textContent = formatter.format(finalProfitLoss);
+            profitEl.className = finalProfitLoss >= 0 ? "value profit" : "value loss";
+        }
+        
+        function renderBreakevenChart(data) {
+            if (breakevenChartInstance) breakevenChartInstance.destroy();
+            const labels = ['M0', ...data.map(d => `M${d.month}`)];
+            const cumulativeRevenueData = [0, ...data.map(d => d.cumulativeRevenue)];
+            const cumulativeCostsData = [CONFIG.assumptions.costs.upfront, ...data.map(d => d.cumulativeCosts)];
+            const breakevenIndex = data.findIndex(d => d.cumulativeProfitLoss >= 0);
+
+            breakevenChartInstance = new Chart(breakevenChartCanvas, {
+                type: 'line', data: { labels, datasets: [
+                        { label: 'Cumulative Revenue', data: cumulativeRevenueData, borderColor: 'var(--success-color)', borderWidth: 2.5, fill: { target: 1, above: 'rgba(16, 185, 129, 0.1)', below: 'rgba(239, 68, 68, 0.1)' }, tension: 0.4, pointRadius: 0 },
+                        { label: 'Cumulative Costs', data: cumulativeCostsData, borderColor: 'var(--danger-color)', borderWidth: 2.5, fill: false, tension: 0.4, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true },
+                        annotation: { annotations: breakevenIndex !== -1 ? { breakevenLine: { type: 'line', xMin: breakevenIndex + 1, xMax: breakevenIndex + 1, borderColor: 'var(--warning-color)', borderWidth: 2, borderDash: [6, 6], label: { content: `Breakeven: Month ${breakevenIndex + 1}`, display: true, position: 'start', backgroundColor: 'rgba(245, 158, 11, 0.9)', color: '#333', font: { weight: 'bold' }, yAdjust: -10 } } } : {} },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: { x: { grid: { display: false } }, y: { beginAtZero: false, ticks: { callback: value => '$' + (value / 1000) + 'k' } } }
+                }
+            });
+        }
+
+        function renderSecondaryCharts(data) {
+            if (usersChartInstance) usersChartInstance.destroy();
+            if (revenueChartInstance) revenueChartInstance.destroy();
+            const labels = data.map(d => `M${d.month}`);
+            const newUsersData = data.map(d => d.newUsersThisMonth);
+            const cumulativeRevenueData = data.map(d => d.cumulativeRevenue);
+
+            usersChartInstance = new Chart(usersChartCanvas, {
+                type: 'bar', data: { labels, datasets: [{
+                        label: 'New Paid Users', data: newUsersData, backgroundColor: 'rgba(79, 70, 229, 0.8)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true } } }
+            });
+            revenueChartInstance = new Chart(revenueChartCanvas, {
+                type: 'line', data: { labels, datasets: [{
+                        label: 'Cumulative Revenue', data: cumulativeRevenueData, borderColor: 'var(--success-color)', backgroundColor: 'rgba(16, 185, 129, 0.2)', fill: true, tension: 0.4, pointRadius: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { callback: value => '$' + (value / 1000) + 'k' } } }
+                }
+            });
+        }
+        
+        // --- MAIN CONTROLLER ---
+        function runAnalysis() {
+            try {
+                const projectionDuration = parseInt(durationSelect.value);
+                const data = generateProjection(projectionDuration);
+                renderAll(data);
+            } catch (error) {
+                console.error("An error occurred during analysis:", error);
+            }
+        }
+        
+        Chart.register(ChartJsPluginAnnotation);
+        runAnalysis();
+    });
+</script>
+</body>
+</html>
