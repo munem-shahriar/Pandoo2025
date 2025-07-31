@@ -1,0 +1,292 @@
+<!-- Save this as pandoo_projection.html and open in a browser -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pandoo App - Unified Financial Projection</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #4F46E5;
+      --secondary-color: #6B7280;
+      --success-color: #10B981;
+      --danger-color: #EF4444;
+      --warning-color: #F59E0B;
+      --bg-color: #F9FAFB;
+      --font-color: #1F2937;
+      --card-bg: #FFFFFF;
+      --border-color: #E5E7EB;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--font-color);
+      margin: 0;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: auto; padding: 20px; }
+    header { text-align: center; margin-bottom: 40px; }
+    .controls, .summary-container, .chart-wrapper, .secondary-charts-container, .table-container, .assumptions-container {
+      margin-bottom: 40px;
+    }
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;
+      background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .input-group { display: flex; flex-direction: column; }
+    .input-group label { font-weight: bold; margin-bottom: 8px; color: var(--secondary-color); }
+    .input-group input, .input-group select {
+      padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; width: 250px;
+    }
+    .summary-container {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
+    }
+    .summary-box {
+      background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 4px solid var(--primary-color);
+    }
+    .summary-box h3 { font-size: 0.9em; margin-bottom: 10px; color: var(--secondary-color); }
+    .summary-box .value { font-size: 1.8em; font-weight: bold; }
+    .assumptions-container {
+      background-color: #F3F4F6; border-left: 5px solid var(--secondary-color); padding: 20px; border-radius: 0 8px 8px 0;
+    }
+    .assumptions-container ul {
+      list-style: disc inside; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;
+    }
+    .chart-wrapper {
+      background: var(--card-bg); padding: 20px; border-radius: 12px; height: 450px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .secondary-charts-container {
+      display: flex; gap: 20px;
+    }
+    .secondary-charts-container .chart-wrapper {
+      flex: 1; height: 300px;
+    }
+    .table-container {
+      background: var(--card-bg); padding: 20px; border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 10px; border-bottom: 1px solid var(--border-color); text-align: left; white-space: nowrap;
+    }
+    th { background-color: var(--primary-color); color: white; }
+    td.profit { color: var(--success-color); }
+    td.loss { color: var(--danger-color); }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Pandoo App - Unified Financial Projection</h1>
+    <p>A deterministic model showing our path to an 18-month breakeven and profitable growth.</p>
+  </header>
+
+  <div class="assumptions-container">
+    <h3>Core Assumptions</h3>
+    <ul>
+      <li><b>Upfront Cost:</b> $31,250</li>
+      <li><b>Fixed Monthly Cost:</b> $2,882 (Y1 & Y2), declines 10% annually from Y3</li>
+      <li><b>Customer Acquisition Cost (CAC):</b> $18/user</li>
+      <li><b>Breakeven Target:</b> 2.11% of SOM by Month 18 (over 24 months)</li>
+      <li><b>User Growth (Months 1–24):</b> Custom S-curve distribution</li>
+      <li><b>Subscription Split:</b> 50% Monthly ($30), 10% Half-Yearly ($48), 40% Yearly ($60)</li>
+      <li><b>Renewal:</b> 25% of yearly users renew after 12 months at $57.60</li>
+      <li><b>Conversion:</b> 10% of monthly users convert to yearly after 3 months</li>
+    </ul>
+  </div>
+
+  <div class="controls">
+    <div class="input-group">
+      <label for="somNumber">Total SOM</label>
+      <input type="number" id="somNumber" value="228000" />
+    </div>
+    <div class="input-group">
+      <label for="projectionDuration">Projection Duration</label>
+      <select id="projectionDuration">
+        <option value="12">1 Year</option>
+        <option value="24" selected>2 Years</option>
+        <option value="36">3 Years</option>
+        <option value="48">4 Years</option>
+        <option value="60">5 Years</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="summary-container">
+    <div class="summary-box"><h3>Required Market Share</h3><div class="value" style="color:var(--warning-color)">2.11%</div></div>
+    <div class="summary-box"><h3>Breakeven Point</h3><div class="value" id="breakevenMonthValue">...</div></div>
+    <div class="summary-box"><h3>Users to Breakeven</h3><div class="value" id="totalUsersToBreakevenValue">...</div></div>
+    <div class="summary-box"><h3>Profit at End of Term</h3><div class="value" id="totalProfitLossValue">...</div></div>
+    <div class="summary-box"><h3>Market Share by End</h3><div class="value" id="totalMarketShareValue">...</div></div>
+    <div class="summary-box"><h3>Total Revenue</h3><div class="value" id="totalRevenueValue">...</div></div>
+    <div class="summary-box"><h3>Total Users</h3><div class="value" id="totalUsersValue">...</div></div>
+  </div>
+
+  <div class="chart-wrapper">
+    <h3>Breakeven Analysis</h3>
+    <canvas id="breakevenChart"></canvas>
+  </div>
+
+  <div class="secondary-charts-container">
+    <div class="chart-wrapper"><h3>New Paid Users</h3><canvas id="usersChart"></canvas></div>
+    <div class="chart-wrapper"><h3>Cumulative Revenue</h3><canvas id="revenueChart"></canvas></div>
+  </div>
+
+  <div class="table-container">
+    <h2>Monthly Projection Data</h2>
+    <table>
+      <thead><tr><th>Month</th><th>New Users</th><th>Revenue</th><th>Costs</th><th>Monthly P/L</th><th>Cumulative P/L</th></tr></thead>
+      <tbody id="projectionTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const somInput = document.getElementById('somNumber');
+  const durationSelect = document.getElementById('projectionDuration');
+  const tableBody = document.getElementById('projectionTableBody');
+  const breakevenEl = document.getElementById('breakevenMonthValue');
+  const usersToBEEl = document.getElementById('totalUsersToBreakevenValue');
+  const totalPL = document.getElementById('totalProfitLossValue');
+  const totalMS = document.getElementById('totalMarketShareValue');
+  const totalRev = document.getElementById('totalRevenueValue');
+  const totalUsers = document.getElementById('totalUsersValue');
+  const beChart = document.getElementById('breakevenChart');
+  const usersChart = document.getElementById('usersChart');
+  const revenueChart = document.getElementById('revenueChart');
+
+  let breakevenChartInstance, usersChartInstance, revenueChartInstance;
+
+  const GROWTH = [1,1,2,2,3,4,5,6,8,9,10,11,12,11,10,9,8,7,6,6,5,5,4,4];
+  const sum = GROWTH.reduce((a,b) => a+b,0);
+  const normGrowth = GROWTH.map(v => v/sum);
+
+  function run() {
+    const som = +somInput.value;
+    const months = +durationSelect.value;
+    const data = [];
+    let cCost = 31250, cRev = 0;
+    const conv = [], yRenew = {};
+    const users = [];
+
+    const tgt24 = som * 0.0211;
+    const growth = new Array(months).fill(0);
+    for (let m = 0; m < Math.min(24, months); m++) growth[m] = Math.round(tgt24 * normGrowth[m]);
+
+    const MS_Targets = {24: 0.0211, 36: 0.0315, 48: 0.045, 60: 0.06};
+    [36,48,60].forEach(monthEnd => {
+      if (months >= monthEnd) {
+        const add = som * (MS_Targets[monthEnd] - MS_Targets[monthEnd-12]) / 12;
+        for (let m = monthEnd-12; m < monthEnd; m++) growth[m] = Math.round(add);
+      }
+    });
+
+    for (let m = 0; m < months; m++) {
+      const n = growth[m] || 0;
+      users.push(n);
+      const mth = m+1;
+      const mSub = Math.round(n * 0.5), hSub = Math.round(n * 0.1), ySub = Math.round(n * 0.4);
+      conv[m] = mSub;
+      const rev = (mSub*30) + (hSub*48) + (ySub*60);
+
+      const renewal = mth > 12 ? Math.round((yRenew[mth-12] || 0) * 0.25 * 57.6) : 0;
+      const conversion = mth > 3 ? Math.round((conv[mth-4] || 0) * 0.1 * 60) : 0;
+      yRenew[mth] = ySub;
+
+      const totRev = rev + renewal + conversion;
+      cRev += totRev;
+
+      let fix = 2882;
+      if (mth > 24) {
+        const year = Math.floor((mth - 25) / 12) + 1;
+        fix *= Math.pow(0.9, year);
+      }
+
+      const varCost = n * 18;
+      const cost = fix + varCost;
+      cCost += cost;
+
+      data.push({
+        month: mth, n, rev: totRev, cost, profit: totRev - cost, cumPL: cRev - cCost, cumRev: cRev, cumCost: cCost
+      });
+    }
+
+    render(data, som);
+  }
+
+  function render(data, som) {
+    const formatter = v => '$' + v.toLocaleString(undefined, {maximumFractionDigits:0});
+    const rows = data.map(d => `<tr>
+      <td>${d.month}</td><td>${d.n}</td><td>${formatter(d.rev)}</td><td>${formatter(d.cost)}</td>
+      <td class="${d.profit>=0?'profit':'loss'}">${formatter(d.profit)}</td>
+      <td class="${d.cumPL>=0?'profit':'loss'}">${formatter(d.cumPL)}</td></tr>`).join('');
+    tableBody.innerHTML = rows;
+
+    const breakeven = data.find(d => d.cumPL >= 0);
+    breakevenEl.textContent = breakeven ? `~ Month ${breakeven.month}` : 'Not Possible';
+    usersToBEEl.textContent = breakeven ? data.slice(0,breakeven.month).reduce((a,b)=>a+b.n,0) : '0';
+    totalPL.textContent = formatter(data.at(-1).cumPL);
+    totalMS.textContent = ((data.reduce((a,b)=>a+b.n,0)/som)*100).toFixed(2)+'%';
+    totalRev.textContent = formatter(data.at(-1).cumRev);
+    totalUsers.textContent = data.reduce((a,b)=>a+b.n,0);
+
+    if (breakevenChartInstance) breakevenChartInstance.destroy();
+    breakevenChartInstance = new Chart(beChart, {
+      type: 'line',
+      data: {
+        labels: ['M0', ...data.map(d=>'M'+d.month)],
+        datasets: [
+          {label:'Cumulative Revenue', data:[0,...data.map(d=>d.cumRev)], borderColor:'green', tension:0.4},
+          {label:'Cumulative Costs', data:[31250,...data.map(d=>d.cumCost)], borderColor:'red', tension:0.4}
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          annotation: {
+            annotations: breakeven ? {
+              line1: {
+                type:'line',
+                xMin: breakeven.month,
+                xMax: breakeven.month,
+                borderColor: 'orange',
+                label: {enabled:true, content:'Breakeven', position:'start'}
+              }
+            } : {}
+          }
+        }
+      }
+    });
+
+    if (usersChartInstance) usersChartInstance.destroy();
+    usersChartInstance = new Chart(usersChart, {
+      type: 'bar',
+      data: {
+        labels: data.map(d=>'M'+d.month),
+        datasets: [{label:'New Users', data:data.map(d=>d.n), backgroundColor:'#4F46E5'}]
+      }
+    });
+
+    if (revenueChartInstance) revenueChartInstance.destroy();
+    revenueChartInstance = new Chart(revenueChart, {
+      type: 'line',
+      data: {
+        labels: data.map(d=>'M'+d.month),
+        datasets: [{label:'Cumulative Revenue', data:data.map(d=>d.cumRev), borderColor:'#10B981', tension:0.4}]
+      }
+    });
+  }
+
+  somInput.addEventListener('input', run);
+  durationSelect.addEventListener('change', run);
+  Chart.register(window['chartjs-plugin-annotation']);
+  run();
+});
+</script>
+</body>
+</html>
